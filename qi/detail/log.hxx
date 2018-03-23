@@ -11,6 +11,7 @@
 #include <boost/format.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/preprocessor/cat.hpp>
+#include <boost/vmd/is_empty.hpp>
 
 #if defined(NO_QI_LOG_DETAILED_CONTEXT)
 #   define _qiLogDebug(...)      qi::log::LogStream(qi::LogLevel_Debug, "", __FUNCTION__, 0, __VA_ARGS__).self()
@@ -116,7 +117,7 @@
 #define _QI_LOG_MESSAGE_STREAM_HASCAT_0(...) _QI_LOG_MESSAGE_STREAM_HASCAT_0_BOUNCE(__VA_ARGS__)
 #endif
 
-// At leas one argument: category. Check for a format argument
+// At least one argument: category. Check for a format argument
 #define _QI_LOG_MESSAGE_STREAM_HASCAT_0_BOUNCE(Type, TypeCased, cat, ...) \
  QI_CAT(_QI_LOG_MESSAGE_STREAM_HASCAT_HASFORMAT_, _QI_LOG_ISEMPTY( __VA_ARGS__))(Type, TypeCased, cat, __VA_ARGS__)
 
@@ -129,29 +130,7 @@
 #define _QI_LOG_MESSAGE_STREAM_HASCAT_HASFORMAT_0(Type, TypeCased, cat, ...) \
    BOOST_PP_CAT(_qiLog, TypeCased)(cat, _QI_LOG_FORMAT(__VA_ARGS__))
 
-
-/* Detecting empty arg is tricky.
- * Trick 1 below does not work with gcc, because  x ## "foo" produces a preprocessor error.
- * Trick 2 rely on ##__VA_ARGS__
-*/
-#ifdef _MSC_VER
-
-#define _WQI_IS_EMPTY_HELPER___ a,b
-#define WQI_IS_EMPTY(a,...) QI_CAT_20(QI_LIST_VASIZE,((QI_CAT_22(_WQI_IS_EMPTY_HELPER, QI_CAT_24(QI_CAT_26(_, a), _)))))
-
-#define _QI_FIRST_ARG(a, ...) a
-#define _QI_LOG_ISEMPTY(...) WQI_IS_EMPTY(QI_CAT_18(_, _QI_FIRST_ARG(__VA_ARGS__, 12)))
-
-#else
-
-#define _QI_LOG_REVERSE 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0
-#define _QI_LOG_REVERSEEMPTY 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1
-#define _QI_LOG_ARGN(a, b, c, d, e, f, g, h, i, N, ...) N
-#define _QI_LOG_NARG_(dummy, ...) _QI_LOG_ARGN(__VA_ARGS__)
-#define _QI_LOG_NARG(...) _QI_LOG_NARG_(dummy, ##__VA_ARGS__, _QI_LOG_REVERSE)
-#define _QI_LOG_ISEMPTY(...) _QI_LOG_NARG_(dummy, ##__VA_ARGS__, _QI_LOG_REVERSEEMPTY)
-
-#endif
+#define _QI_LOG_ISEMPTY(...) BOOST_VMD_IS_EMPTY(__VA_ARGS__)
 
 namespace qi {
   namespace log{
