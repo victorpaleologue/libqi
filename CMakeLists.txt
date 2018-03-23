@@ -59,7 +59,6 @@ endif()
 #### Set compilation flags {{{
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 endif()
 #### }}}
 
@@ -464,8 +463,6 @@ qi_create_lib(qi SHARED
     BOOST_RANDOM
   SUBMODULE ${_tp_qi}
 )
-
-
 
 #### Add optional libs {{{
 if(WIN32)
