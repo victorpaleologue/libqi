@@ -2,11 +2,12 @@
 ** Copyright (C) 2010, 2012 Aldebaran Robotics
 */
 
+#include <cfloat>
 #include <climits>
-#include <float.h>
 #include <cmath>
-#include <gtest/gtest.h>
 #include <map>
+#include <gtest/gtest.h>
+#include <boost/regex.hpp>
 #include <qi/anyvalue.hpp>
 #include <qi/application.hpp>
 #include <qi/type/typeinterface.hpp>
@@ -138,6 +139,26 @@ TEST(EncodeJSON, OptionalValue)
   EXPECT_EQ("642", qi::encodeJSON(boost::optional<int>(642)));
 }
 
+TEST(ParseError, messageIncludesReasonLineAndColumn) {
+  const std::string reason{"whatever"};
+  const size_t line = 42;
+  const size_t column = 666;
+  const qi::ParseError error{reason, line, column};
+  const std::string errorMessage = error.what();
+
+  const std::string reasonRegexStr = ".*?" + reason;
+  const std::string lineAndColumnRegexStr =
+      ".*?(l\\.|lin)?\\w*?\\s*?" + std::to_string(line) +
+      "(:|.*?(c\\.|col)\\w*?\\s*?)" + std::to_string(column);
+  const boost::regex expression{
+    "(" + reasonRegexStr + lineAndColumnRegexStr + "|" +
+        lineAndColumnRegexStr + reasonRegexStr + ")"};
+
+  ASSERT_TRUE(boost::regex_match(errorMessage, expression))
+      << "Error message does not tell clearly reason, line or column:" << std::endl
+      << "\"" << errorMessage << "\"";
+}
+
 template<class T>
 std::string itoa(T n)
 {
@@ -172,13 +193,24 @@ std::string cleanStr(std::string const& numberStr)
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
+#define ASSERT_THROW_PARSE_ERROR(expression, expectedLine, expectedColumn) \
+  try { \
+    expression; \
+    FAIL() << "expression " + std::string{STR(expression)} + " did not throw a qi::ParseError"; \
+  } catch (const qi::ParseError& e) { \
+    ASSERT_EQ(expectedLine, e.line()) \
+      << "qi::ParseError was thrown, but points to line " << e.line() << " instead of " << expectedLine; \
+    ASSERT_EQ(expectedColumn, e.column()) \
+      << "qi::ParseError was thrown, but points to column " << e.column() << " instead of " << expectedColumn; \
+  }
+
 TEST(DecodeJSON, EmptyValue) {
-  ASSERT_ANY_THROW(qi::decodeJSON(""));
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON(""), 1, 1);
 }
 
 TEST(DecodeJSON, String) {
   // Broken string
-  EXPECT_ANY_THROW(qi::decodeJSON("\""));
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("\""), 1, 2);
   // Empty string
   EXPECT_NO_THROW(qi::decodeJSON("\"\""));
   // Normal string
@@ -213,11 +245,20 @@ TEST(DecodeJSON, String) {
       "\t";
   ASSERT_NO_THROW(qi::decodeJSON(testString));
   ASSERT_STREQ(resString.c_str(), qi::decodeJSON(testString).asString().c_str());
+
+  // Wrong escape sequences
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("\\"), 1, 1);
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("\\ "), 1, 1);
+
+  // Unicode characters in strings.
+  EXPECT_STREQ(u8"愛", qi::decodeJSON(u8"\"愛\"").asString().c_str());
+  // Column information counts multi-byte unicode character as a single character.
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON(u8"\"愛"), 1, 3);
 }
 
 TEST(DecodeJSON, Integer) {
   // broken value
-  EXPECT_ANY_THROW(qi::decodeJSON("--42"));
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("--42"), 1, 1);
 
   ASSERT_NO_THROW(qi::decodeJSON("42"));
   ASSERT_NO_THROW(qi::decodeJSON("-42"));
@@ -340,6 +381,10 @@ TEST(DecodeJSON, Array) {
   ASSERT_EQ(qi::TypeKind_Int, val[0].content().kind());
   ASSERT_EQ(qi::TypeKind_List, val[1].content().kind());
   ASSERT_EQ(2U, qi::decodeJSON("[1, [2, 3]]")[1].content().size());
+
+  // error report
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("[42"), 1, 4);
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("[42,"), 1, 5);
 }
 
 TEST(DecodeJSON, Object) {
@@ -349,9 +394,9 @@ TEST(DecodeJSON, Object) {
   ASSERT_NO_THROW(qi::decodeJSON("{\"a\":42, \"b\":1.0}"));
   ASSERT_NO_THROW(qi::decodeJSON("{\"a\":42, \"b\":{\"c\":[1, 2]}}"));
 
-  ASSERT_ANY_THROW(qi::decodeJSON("{"));
-  ASSERT_ANY_THROW(qi::decodeJSON("{42:42}"));
-  ASSERT_ANY_THROW(qi::decodeJSON("{\"42\":}"));
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("{"), 1, 2);
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("{42:42}"), 1, 2);
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("{\"42\":}"), 1, 7);
 
   ASSERT_EQ(qi::TypeKind_Map, qi::decodeJSON("{}").kind());
   ASSERT_EQ(1U, qi::decodeJSON("{\"a\":42}").size());
@@ -364,7 +409,7 @@ TEST(DecodeJSON, special) {
   ASSERT_NO_THROW(qi::decodeJSON("true"));
   ASSERT_NO_THROW(qi::decodeJSON("false"));
   ASSERT_NO_THROW(qi::decodeJSON("null"));
-  ASSERT_ANY_THROW(qi::decodeJSON("tru"));
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON("tru"), 1, 1);
 
   ASSERT_EQ(qi::TypeKind_Int, qi::decodeJSON("true").kind());
   ASSERT_EQ(qi::TypeKind_Int, qi::decodeJSON("false").kind());
@@ -387,7 +432,7 @@ TEST(DecodeJSON, itOverload) {
   ASSERT_EQ(qi::TypeKind_List, val.kind());
 
   std::string testString2 = "<jsonString=\"[\"a\", 42\"/>";
-  ASSERT_ANY_THROW(qi::decodeJSON(testString2.begin() + 13, testString2.end(), val));
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON(testString2.begin() + 13, testString2.end(), val), 1, 9);
 
 }
 
@@ -409,8 +454,8 @@ TEST(DecodeJSON, Strings)
   ASSERT_NO_THROW(v = qi::decodeJSON(s3));
   EXPECT_EQ("pon\xc3\xa9", v["content"].to<std::string>());
 
-  ASSERT_ANY_THROW(qi::decodeJSON(s4));
-  ASSERT_ANY_THROW(qi::decodeJSON(s5));
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON(s4), 1, 19);
+  ASSERT_THROW_PARSE_ERROR(qi::decodeJSON(s5), 1, 19);
 }
 
 

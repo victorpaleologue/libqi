@@ -3,9 +3,10 @@
 **  See COPYING for the license
 */
 
+#include <iterator>
+#include <stdexcept>
 #include <qi/jsoncodec.hpp>
 #include <qi/anyvalue.hpp>
-#include <iterator>
 #include <boost/lexical_cast.hpp>
 #ifdef WITH_BOOST_LOCALE
 #  include <boost/locale.hpp>
@@ -14,48 +15,71 @@
 
 namespace qi {
 
-  JsonDecoderPrivate::JsonDecoderPrivate(const std::string &in)
-    :_begin(in.begin()),
-      _end(in.end()),
-      _it(_begin)
+  ParseError::ParseError(const std::string& reason, size_t line, size_t column):
+      std::runtime_error([&]() {
+          std::ostringstream ss;
+          ss << "parse error at line " << line << ", column " << column << ": " << reason;
+          return ss.str();
+        }()),
+      _line(line),
+      _column(column)
   {}
 
-  JsonDecoderPrivate::JsonDecoderPrivate(const std::string::const_iterator &begin,
-                    const std::string::const_iterator &end)
-    :_begin(begin),
-      _end(end),
-      _it(_begin)
+  size_t ParseError::line() const { return _line; }
+  size_t ParseError::column() const { return _column; }
+
+  namespace {
+    ParseError makeParseError(const std::string& reason, const detail::DocumentConstIterator& it) {
+      return ParseError(reason, it.line(), it.column());
+    }
+  }
+
+  JsonDecoderPrivate::JsonDecoderPrivate(const std::string &in)
+    : _begin(detail::DocumentConstIterator::begin(in)),
+      _end(detail::DocumentConstIterator::end(in)),
+      _it(detail::DocumentConstIterator::begin(in))
+  {}
+
+  JsonDecoderPrivate::JsonDecoderPrivate(
+      const std::string::const_iterator &begin,
+      const std::string::const_iterator &end)
+    : _begin(begin, begin),
+      _end(end, begin),
+      _it(begin, begin)
   {}
 
   std::string::const_iterator JsonDecoderPrivate::decode(AnyValue &out)
   {
     _it = _begin;
     if (!decodeValue(out))
-      throw std::runtime_error("parse error");
-    return _it;
+      throw makeParseError("unknown", _it);
+    return _it.stringIterator();
   }
 
   void JsonDecoderPrivate::skipWhiteSpaces()
   {
     while (_it != _end && (*_it == ' ' || *_it == '\n'))
+    {
       ++_it;
+    }
   }
 
   bool JsonDecoderPrivate::getDigits(std::string &result)
   {
-    std::string::const_iterator begin = _it;
+    auto begin = _it;
 
     while (_it != _end && *_it >= '0' && *_it <= '9')
       ++_it;
+
     if (_it == begin)
         return false;
-    result = std::string(begin, _it);
+    result = std::string(begin.stringIterator(), _it.stringIterator());
     return true;
   }
 
   bool JsonDecoderPrivate::getInteger(std::string &result)
   {
-    std::string::const_iterator save = _it;
+    auto save = _it;
     std::string integerStr;
 
     if (_it == _end)
@@ -90,7 +114,7 @@ namespace qi {
 
   bool JsonDecoderPrivate::getExponent(std::string &result)
   {
-    std::string::const_iterator save = _it;
+    auto save = _it;
 
     if (_it == _end || (*_it != 'e' && *_it != 'E'))
       return false;
@@ -122,7 +146,7 @@ namespace qi {
     std::string beforePoint;
     std::string afterPoint;
     std::string exponent;
-    std::string::const_iterator save = _it;
+    auto save = _it;
 
     if (!getInteger(beforePoint))
       return false;
@@ -133,6 +157,7 @@ namespace qi {
         _it = save;
         return false;
       }
+
       ++_it;
       if (!getDigits(afterPoint))
       {
@@ -151,8 +176,6 @@ namespace qi {
 
   bool JsonDecoderPrivate::decodeArray(AnyValue &value)
   {
-    std::string::const_iterator save = _it;
-
     if (_it == _end || *_it != '[')
       return false;
     ++_it;
@@ -160,8 +183,8 @@ namespace qi {
 
     while (true)
     {
+      skipWhiteSpaces();
       AnyValue subElement;
-
       if (!decodeValue(subElement))
         break;
       tmpArray.push_back(subElement);
@@ -170,10 +193,8 @@ namespace qi {
       ++_it;
     }
     if (*_it != ']')
-    {
-      _it = save;
-      return false;
-    }
+      throw makeParseError("unterminated list", _it);
+
     ++_it;
     value = AnyValue(tmpArray);
     return true;
@@ -201,8 +222,6 @@ namespace qi {
 
   bool JsonDecoderPrivate::getCleanString(std::string &result)
   {
-    std::string::const_iterator save = _it;
-
     if (_it == _end || *_it != '"')
       return false;
     std::string tmpString;
@@ -212,45 +231,39 @@ namespace qi {
     {
       if (*_it == '\\')
       {
-        if (_it + 1 == _end)
+        auto nextIt = std::next(_it, 1);
+        if (nextIt == _end)
+          throw makeParseError("incomplete escape sequence", _it);
+
+        switch (*nextIt)
         {
-          _it = save;
-          return false;
-        }
-        switch (*(_it + 1))
-        {
-        case '"' : tmpString += '"' ; _it += 2; break;
-        case '\\': tmpString += '\\'; _it += 2; break;
-        case '/' : tmpString += '/' ; _it += 2; break;
-        case 'b' : tmpString += '\b'; _it += 2; break;
-        case 'f' : tmpString += '\f'; _it += 2; break;
-        case 'n' : tmpString += '\n'; _it += 2; break;
-        case 'r' : tmpString += '\r'; _it += 2; break;
-        case 't' : tmpString += '\t'; _it += 2; break;
+        case '"' : tmpString += '"' ; std::advance(_it, 2); break;
+        case '\\': tmpString += '\\'; std::advance(_it, 2); break;
+        case '/' : tmpString += '/' ; std::advance(_it, 2); break;
+        case 'b' : tmpString += '\b'; std::advance(_it, 2); break;
+        case 'f' : tmpString += '\f'; std::advance(_it, 2); break;
+        case 'n' : tmpString += '\n'; std::advance(_it, 2); break;
+        case 'r' : tmpString += '\r'; std::advance(_it, 2); break;
+        case 't' : tmpString += '\t'; std::advance(_it, 2); break;
 #ifdef WITH_BOOST_LOCALE
         case 'u' :
         {
           if (std::distance(_it, _end) <= 6)
-          {
-            _it = save;
-            return false;
-          }
-          std::istringstream ss(std::string(_it+2, _it+6));
+            throw makeParseError("incomplete unicode character", _it);
+
+          std::istringstream ss(std::string(_it.stringIterator() + 2, _it.stringIterator() + 6));
           int val;
           ss >> std::hex >> val;
           if (!ss.eof())
-          {
-            _it = save;
-            return false;
-          }
+            throw makeParseError("malformed unicode character", _it);
+
           tmpString += boost::locale::conv::utf_to_utf<char>(&val, &val + 1);
-          _it += 6;
+          std::advance(_it, 6);
           break;
         }
 #endif
         default:
-          _it = save;
-          return false;
+          throw makeParseError("incomplete escape sequence", _it);
         }
       }
       else
@@ -260,10 +273,8 @@ namespace qi {
       }
     }
     if (_it == _end)
-    {
-      _it = save;
-      return false;
-    }
+      throw makeParseError("unterminated string", _it);
+
     ++_it;
     result = tmpString;
     return true;
@@ -281,8 +292,6 @@ namespace qi {
 
   bool JsonDecoderPrivate::decodeObject(AnyValue &value)
   {
-    std::string::const_iterator save = _it;
-
     if (_it == _end || *_it != '{')
       return false;
     ++_it;
@@ -297,17 +306,13 @@ namespace qi {
         break;
       skipWhiteSpaces();
       if (_it == _end || *_it != ':')
-      {
-        _it = save;
-        return false;
-      }
+        throw makeParseError("missing ':' after field", _it);
+
       ++_it;
       AnyValue tmpValue;
       if (!decodeValue(tmpValue))
-      {
-        _it = save;
-        return false;
-      }
+        throw makeParseError("failed to decode value", _it);
+
       if (_it == _end)
         break;
       tmpMap[key] = tmpValue;
@@ -316,10 +321,8 @@ namespace qi {
       ++_it;
     }
     if (_it == _end || *_it != '}')
-    {
-      _it = save;
-      return false;
-    }
+      throw makeParseError("unterminated object", _it);
+
     ++_it;
     value = AnyValue(tmpMap);
     return true;
@@ -327,7 +330,7 @@ namespace qi {
 
   bool JsonDecoderPrivate::match(std::string const& expected)
   {
-    std::string::const_iterator save = _it;
+    auto save = _it;
     std::string::const_iterator begin = expected.begin();
 
     while (_it != _end && begin != expected.end())
@@ -396,5 +399,4 @@ namespace qi {
     parser.decode(value);
     return value;
   }
-
 }
