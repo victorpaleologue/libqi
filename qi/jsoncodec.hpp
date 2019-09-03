@@ -25,18 +25,38 @@ namespace qi {
   QI_API std::string encodeJSON(const qi::AutoAnyReference &val, JsonOption jsonPrintOption = JsonOption_None);
 
   /**
-    * creates a GV representing a JSON string or throw on parse error.
-    * @param in JSON string to decode.
-    * @return a GV representing the JSON string
+   * @brief Parse error associating a message to a parsing location (line and column).
+   */
+  struct QI_API ParseError: std::runtime_error
+  {
+    ParseError(const std::string& reason, size_t line, size_t column);
+
+    /** Line at which the parse error occurred. */
+    size_t line() const;
+
+    /** Column at which the parse error occurred. */
+    size_t column() const;
+
+  private:
+    size_t _line;
+    size_t _column;
+  };
+
+  /**
+    * Creates an AnyValue described with a JSON string.
+    * @param in an UTF-8 JSON string to decode.
+    * @return a AnyValue corresponding to the JSON description.
+    * @throw ParseError if the JSON string could not be parsed.
     */
   QI_API qi::AnyValue decodeJSON(const std::string &in);
 
   /**
-    * set the input GV to represent the JSON sequence between two string iterators or throw on parse error.
+    * Sets an AnyValue to the value described by the JSON UTF-8 sequence between two string iterators.
     * @param begin iterator to the beginning of the sequence to decode.
     * @param end iterator to the end of the sequence to decode.
-    * @param target GV to set. Not modified if an error occured.
-    * @return an iterator to the last read char + 1
+    * @param target the AnyValue to set. Not modified if an error occured.
+    * @return an iterator to the last read char + 1.
+    * @throw ParseError if the JSON string could not be parsed.
     */
   QI_API std::string::const_iterator decodeJSON(const std::string::const_iterator &begin,
                                          const std::string::const_iterator &end,
