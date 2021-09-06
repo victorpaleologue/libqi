@@ -5,10 +5,11 @@
  ** Copyright (C) 2010, 2012 Aldebaran Robotics
  */
 
-#include <vector>
-#include <string>
-#include <future>
 #include <chrono>
+#include <future>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 #include <boost/optional.hpp>
