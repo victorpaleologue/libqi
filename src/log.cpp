@@ -67,6 +67,8 @@
 
 qiLogCategory("qi.log");
 
+using namespace boost::placeholders;
+
 namespace qi {
   namespace detail {
 
