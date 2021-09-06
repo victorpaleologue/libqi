@@ -33,6 +33,7 @@
 qiLogCategory("qi.Application");
 
 namespace bfs = boost::filesystem;
+using namespace boost::placeholders;
 
 static std::string _sdkPath;
 static boost::program_options::options_description _options;
