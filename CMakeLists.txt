@@ -450,7 +450,6 @@ qi_create_lib(qi SHARED
     ${QI_SOCKET_H}
     ${KA_H}
   DEPENDS
-    ASSUME_SYSTEM_INCLUDE
     BOOST
     BOOST_ATOMIC
     BOOST_DATE_TIME
