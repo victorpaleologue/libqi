@@ -16,6 +16,8 @@
 
 namespace qi {
 
+void registerBaseTypes() {}
+
 #define INTEGRAL_TYPE(t) \
 static bool BOOST_PP_CAT(unused_ , __LINE__) QI_ATTR_UNUSED \
   = registerType(qi::typeId<t>(), new IntTypeInterfaceImpl<t>());
