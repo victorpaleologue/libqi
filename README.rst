@@ -151,6 +151,9 @@ to use the [`musl`](https://musl.libc.org/) toolchain,
 which supports compiling very portable binaries with static linking:
 
 .. code-block:: sh
+  brew tap messense/macos-cross-toolchains
+  brew install i686-unknown-linux-musl
+
   mkdir build
   cd build
   cmake .. -DCMAKE_TOOLCHAINE_FILE=../mac-homebrew-i686.toolchain.cmake
