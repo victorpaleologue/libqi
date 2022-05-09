@@ -154,11 +154,9 @@ which supports compiling very portable binaries with static linking:
   brew tap messense/macos-cross-toolchains
   brew install i686-unknown-linux-musl
 
-  mkdir build
-  cd build
-  cmake .. -DCMAKE_TOOLCHAINE_FILE=../mac-homebrew-i686.toolchain.cmake
-  cmake --build .
-  cmake --install . --prefix /path/to/install
+  cmake -B build-nao -DCMAKE_TOOLCHAIN_FILE=mac-homebrew-i686.toolchain.cmake
+  cmake --build build-nao
+  cmake --install build-nao --prefix /path/to/install
 
 Links
 -----
