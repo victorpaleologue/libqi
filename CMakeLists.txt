@@ -586,7 +586,6 @@ set_target_properties(
   qi PROPERTIES
   PUBLIC_HEADER "${QI_H};${QITYPE_H};${QIM_H};${QIPERF_H};${KA_H}"
 )
-install(TARGETS qi PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qi)
 
 # In case that was not clear enough. We build and link statically.
 set_target_properties(qi PROPERTIES LINK_SEARCH_START_STATIC ON)
@@ -627,8 +626,6 @@ if(UNIX AND NOT APPLE AND NOT ANDROID)
   target_link_libraries(qi PUBLIC dl rt)
 endif()
 #### }}}
-
-install(TARGETS qi ARCHIVE DESTINATION lib)
 
 # Install a share/qi/path.conf so that libqi's sdkPrefix can be found
 file(WRITE "${CMAKE_BINARY_DIR}/path.conf" "# Installed by qibuild. Do not remove\n")
