@@ -9,6 +9,7 @@
 #define _QI_CLOCK_HXX_
 
 #include <boost/chrono/ceil.hpp>
+#include <iostream>
 #include <sstream>
 
 namespace qi {

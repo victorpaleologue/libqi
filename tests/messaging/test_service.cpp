@@ -6,8 +6,9 @@
  */
 
 #include <future>
-#include <vector>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
