@@ -616,7 +616,11 @@ endif()
 
 # Threads
 find_package(Threads)
-target_link_libraries(qi PRIVATE Threads::Threads ${CMAKE_THREAD_LIBS_INIT})
+if(Threads_FOUND)
+  target_link_libraries(qi PRIVATE Threads::Threads ${CMAKE_THREAD_LIBS_INIT})
+else() # No threads library on Mac or Android
+  target_link_libraries(qi PRIVATE -pthread)
+endif()
 
 if(ANDROID)
   target_link_libraries(qi PUBLIC log)
