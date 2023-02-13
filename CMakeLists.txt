@@ -634,4 +634,12 @@ endif()
 # Install a share/qi/path.conf so that libqi's sdkPrefix can be found
 file(WRITE "${CMAKE_BINARY_DIR}/path.conf" "# Installed by qibuild. Do not remove\n")
 set_target_properties(qi PROPERTIES RESOURCE "${CMAKE_BINARY_DIR}/path.conf")
-install(TARGETS qi RESOURCE DESTINATION "qi")
+install(TARGETS qi
+  RESOURCE DESTINATION "qi"
+  PUBLIC_HEADER DESTINATION include/qi
+)
+install(DIRECTORY "${Boost_INCLUDE_DIR}/" "qi" "ka"
+        DESTINATION "include" # target directory
+        FILES_MATCHING # install only matched files
+        PATTERN "*" # select header files
+)
