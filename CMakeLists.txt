@@ -638,8 +638,7 @@ install(TARGETS qi
   RESOURCE DESTINATION "qi"
   PUBLIC_HEADER DESTINATION include/qi
 )
-install(DIRECTORY "${Boost_INCLUDE_DIR}/" "qi" "ka"
-        DESTINATION "include" # target directory
-        FILES_MATCHING # install only matched files
-        PATTERN "*" # select header files
-)
+
+# Install includes and dependencies (Boost)
+install(DIRECTORY "${Boost_INCLUDE_DIR}/boost" "qi" "ka" DESTINATION "include")
+install(DIRECTORY  "${BOOST_INSTALL_DIR}/lib" DESTINATION ".")
