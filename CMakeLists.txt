@@ -54,7 +54,7 @@ ExternalProject_Add(
     --openssldir=${OPENSSL_INSTALL_DIR}
   BUILD_COMMAND make
   TEST_COMMAND ""
-  INSTALL_COMMAND make install
+  INSTALL_COMMAND make install_sw
   INSTALL_DIR ${OPENSSL_INSTALL_DIR}
 )
 # We cannot use find_library because ExternalProject_Add() is performed at build time.
@@ -639,6 +639,6 @@ install(TARGETS qi
   PUBLIC_HEADER DESTINATION include/qi
 )
 
-# Install includes and dependencies (Boost)
-install(DIRECTORY "${Boost_INCLUDE_DIR}/boost" "qi" "ka" DESTINATION "include")
-install(DIRECTORY  "${BOOST_INSTALL_DIR}/lib" DESTINATION ".")
+# Install includes and dependencies (OpenSSL, Boost)
+install(DIRECTORY "${OPENSSL_INCLUDE_DIR}" "${Boost_INCLUDE_DIR}/boost" "qi" "ka" DESTINATION "include")
+install(DIRECTORY  "${OPENSSL_INSTALL_DIR}/lib" "${BOOST_INSTALL_DIR}/lib"  DESTINATION ".")
